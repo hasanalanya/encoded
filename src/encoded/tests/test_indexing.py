@@ -37,11 +37,14 @@ def _app_settings(wsgi_server_host_port, elasticsearch_server, postgresql_server
 
 
 @pytest.fixture(scope='session')
+# @pytest.fixture(scope='session')
+@pytest.fixture
 def app_settings(wsgi_server_host_port, elasticsearch_server, postgresql_server):
     return _app_settings(wsgi_server_host_port, elasticsearch_server, postgresql_server)
 
 
 def _app(app_settings):
+    print("######### _app")
     from encoded import main
     app = main({}, **app_settings)
 
@@ -57,13 +60,16 @@ def _app(app_settings):
     DBSession.bind.pool.dispose()
 
 
-@pytest.yield_fixture(scope='session')
+# @pytest.yield_fixture(scope='session')
+@pytest.yield_fixture
 def app(app_settings):
+    print("####### app")
     for app in _app(app_settings):
         yield app
 
 
-@pytest.fixture(scope='session')
+# @pytest.fixture(scope='session')
+@pytest.fixture
 def DBSession(app):
     from snovault import DBSESSION
     return app.registry[DBSESSION]
@@ -71,7 +77,7 @@ def DBSession(app):
 
 @pytest.fixture(autouse=True)
 def teardown(app, dbapi_conn):
-    app.registry['elasticsearch'].indices.delete('_all')
+    print("####### teardown")
     from snovault.elasticsearch import create_mapping
     create_mapping.run(app)
     cursor = dbapi_conn.cursor()
@@ -103,6 +109,7 @@ def listening_conn(dbapi_conn):
 
 
 def test_indexing_simple(testapp, indexer_testapp):
+    print("####### test_indexing_simple")
     # First post a single item so that subsequent indexing is incremental
     testapp.post_json('/testing-post-put-patch/', {'required': ''})
     res = indexer_testapp.post_json('/index', {'record': True})
@@ -118,6 +125,7 @@ def test_indexing_simple(testapp, indexer_testapp):
 
 
 def test_indexing_workbook(testapp, indexer_testapp):
+    print("####### test_indexing_workbook")
     # First post a single item so that subsequent indexing is incremental
     testapp.post_json('/testing-post-put-patch/', {'required': ''})
     res = indexer_testapp.post_json('/index', {'record': True})
@@ -151,6 +159,7 @@ def test_indexing_workbook(testapp, indexer_testapp):
 
 
 def test_indexer_vis_state(dummy_request):
+    print("####### test_indexer_vis_state")
     from encoded.vis_indexer import VisIndexerState
     INDEX = dummy_request.registry.settings['snovault.elasticsearch.index']
     es = dummy_request.registry['elasticsearch']
@@ -167,6 +176,7 @@ def test_indexer_vis_state(dummy_request):
 
 
 def test_indexer_region_state(dummy_request):
+    print("####### test_indexer_region_state")
     from encoded.region_indexer import RegionIndexerState
     INDEX = dummy_request.registry.settings['snovault.elasticsearch.index']
     es = dummy_request.registry['elasticsearch']
@@ -180,6 +190,7 @@ def test_indexer_region_state(dummy_request):
 
 
 def test_listening(testapp, listening_conn):
+    print("####### test_listening")
     import time
     testapp.post_json('/testing-post-put-patch/', {'required': ''})
     time.sleep(1)
