@@ -37,8 +37,7 @@ def _app_settings(wsgi_server_host_port, elasticsearch_server, postgresql_server
 
 
 @pytest.fixture(scope='session')
-# @pytest.fixture(scope='session')
-@pytest.fixture
+#@pytest.fixture
 def app_settings(wsgi_server_host_port, elasticsearch_server, postgresql_server):
     return _app_settings(wsgi_server_host_port, elasticsearch_server, postgresql_server)
 
@@ -60,16 +59,16 @@ def _app(app_settings):
     DBSession.bind.pool.dispose()
 
 
-# @pytest.yield_fixture(scope='session')
-@pytest.yield_fixture
+@pytest.yield_fixture(scope='session')
+#@pytest.yield_fixture
 def app(app_settings):
     print("####### app")
     for app in _app(app_settings):
         yield app
 
 
-# @pytest.fixture(scope='session')
-@pytest.fixture
+@pytest.fixture(scope='session')
+#@pytest.fixture
 def DBSession(app):
     from snovault import DBSESSION
     return app.registry[DBSESSION]
