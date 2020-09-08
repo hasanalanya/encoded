@@ -1571,11 +1571,12 @@ class VisCache(object):
                 'settings': {
                     'index': {
                         'number_of_shards': 1, 
-                        'max_result_window': 99999
+                        'max_result_window': 99999,
+                        'total_fields.limit': 5000
                     }
                 }
             }
-            mapping = {'mappings': {"enabled": False}}
+            mapping = {"enabled": False}
             self.es.indices.create(index=self.index, body=one_shard, wait_for_active_shards=1)
             self.es.indices.put_mapping(index=self.index, body=mapping)
             log.debug("created %s index" % self.index)
