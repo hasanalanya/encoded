@@ -12,7 +12,7 @@ import Pager from '../../libs/ui/pager';
 import { Panel, PanelBody, PanelHeading, TabPanel, TabPanelPane } from '../../libs/ui/panel';
 import { tintColor, isLight } from '../datacolors';
 import GenomeBrowser from '../genome_browser';
-import { itemClass } from '../globals';
+import { itemClass, atIdToType } from '../globals';
 import { requestObjects, ItemAccessories, isFileVisualizable, computeAssemblyAnnotationValue, filterForVisualizableFiles } from '../objectutils';
 import { ResultTableList } from '../search';
 import CartBatchDownload from './batch_download';
@@ -52,6 +52,18 @@ const assemblySorter = facetTerms => (
     // Negate the sorting value to sort from highest to lowest.
     _(facetTerms).sortBy(facetTerm => -computeAssemblyAnnotationValue(facetTerm.term))
 );
+
+
+/**
+ * List of allowed dataset types.
+ */
+const datasetTypes = {
+    all: 'All datasets',
+    experiments: 'Experiments',
+    annotations: 'Annotations',
+    'functional-characterization-experiments': 'Functional characterizations',
+};
+const DEFAULT_DATASET_TYPE = Object.keys(datasetTypes)[0];
 
 
 /**
@@ -486,7 +498,7 @@ const requestDatasets = (elements, fetch, session) => {
     // so pass the @ids in a POST request payload instead to the /search_elements/ endpoint.
     const fieldQuery = requestedFacetFields.reduce((query, facetField) => `${query}&field=${facetField.dataset ? '' : 'files.'}${facetField.field}`, '');
     return sessionPromise.then(csrfToken => (
-        fetch(`/search_elements/type=Experiment${fieldQuery}&field=files.restricted&limit=all&filterresponse=off`, {
+        fetch(`/search_elements/type=Dataset${fieldQuery}&field=files.restricted&limit=all&filterresponse=off`, {
             method: 'POST',
             headers: {
                 Accept: 'application/json',
@@ -887,11 +899,37 @@ CartDatasetSearch.contextTypes = {
 
 
 /**
+ * Selector menu to choose between dataset types to view and download.
+ */
+const CartTypeSelector = ({ selectedType, elements, typeChangeHandler }) => {
+    const usedDatasetTypes = [DEFAULT_DATASET_TYPE].concat(elements.reduce((types, elementAtId) => {
+        const type = atIdToType(elementAtId);
+        return types.includes(type) ? types : types.concat(type);
+    }, []));
+    return (
+        <select value={selectedType} onChange={typeChangeHandler} className="cart-dataset-selector">
+            {usedDatasetTypes.map(type => <option key={type} value={type}>{datasetTypes[type]}</option>)}
+        </select>
+    );
+};
+
+CartTypeSelector.propTypes = {
+    /** Currently selected dataset type */
+    selectedType: PropTypes.string.isRequired,
+    /** Cart elements */
+    elements: PropTypes.array.isRequired,
+    /** Called when the user selects a new dataset type from the dropdown */
+    typeChangeHandler: PropTypes.func.isRequired,
+};
+
+
+/**
  * Display cart tool buttons. If `savedCartObj` is supplied, supply it for the metadata.tsv line
  * in the resulting files.txt.
  */
-const CartTools = ({ elements, selectedTerms, savedCartObj, viewableDatasets, fileCounts, cartType, sharedCart, visualizable, inProgress }) => (
+const CartTools = ({ elements, selectedTerms, selectedType, typeChangeHandler, savedCartObj, viewableDatasets, fileCounts, cartType, sharedCart, visualizable, inProgress }) => (
     <div className="cart__tools">
+        <CartTypeSelector selectedType={selectedType} elements={elements} typeChangeHandler={typeChangeHandler} />
         {elements.length > 0 ?
             <CartBatchDownload
                 elements={elements}
@@ -916,6 +954,10 @@ CartTools.propTypes = {
     elements: PropTypes.array,
     /** Selected facet terms */
     selectedTerms: PropTypes.object,
+    /** Selected dataset type */
+    selectedType: PropTypes.string.isRequired,
+    /** Called when the user selects a new dataset type */
+    typeChangeHandler: PropTypes.func.isRequired,
     /** Cart as it exists in the database; use JSON payload method if none */
     savedCartObj: PropTypes.object,
     /** Viewable cart element @ids */
@@ -1234,6 +1276,8 @@ CounterTab.defaultProps = {
  *           'MEMORY': Viewing carts in browser memory (non-logged-in user)
  * @param {object} context Cart search results object; often empty depending on cart type
  * @param {object} savedCartObj Cart object in Redux store for active logged-in carts
+ * @param {object} elements Elements of the in-memory cart
+ * @param {string} selectedType Currently selected dataset type or 'all'.
  *
  * @return {object} -
  * {
@@ -1242,7 +1286,7 @@ CounterTab.defaultProps = {
  *      {array} cartDatasets - @ids of all datasets in cart
  * }
  */
-const getCartInfo = (context, savedCartObj, elements) => {
+const getCartInfo = (context, savedCartObj, elements, selectedType) => {
     let cartType;
     let cartName;
     let cartDatasets;
@@ -1263,7 +1307,8 @@ const getCartInfo = (context, savedCartObj, elements) => {
         cartName = context.name;
         cartDatasets = context.elements;
     }
-    return { cartType, cartName, cartDatasets };
+    const selectedDatasets = selectedType === 'all' ? cartDatasets : cartDatasets.filter(datasetAtId => atIdToType(datasetAtId) === selectedType);
+    return { cartType, cartName, cartDatasets, selectedDatasets };
 };
 
 
@@ -1392,6 +1437,8 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
     const [facets, setFacets] = React.useState([]);
     // Keeps track of currently selected facet terms keyed by facet fields.
     const [selectedTerms, setSelectedTerms] = React.useState(() => generateFacetTermsTemplate());
+    // Currently selected dataset type
+    const [selectedType, setSelectedType] = React.useState(DEFAULT_DATASET_TYPE);
     // Array of dataset @ids the user has access to view; subset of `datasets`; shared carts only.
     const [viewableDatasets, setViewableDatasets] = React.useState(null);
     // Currently displayed page number for each tab panes; for pagers.
@@ -1402,19 +1449,22 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
     const [displayedTab, setDisplayedTab] = React.useState('datasets');
     // All currently selected partial file objects, visualizable or not.
     const [selectedFiles, setSelectedFiles] = React.useState([]);
-    // All currently selected visualizable partial file objects.
-    const [selectedVisualizableFiles, setSelectedVisualizableFiles] = React.useState([]);
     // Facet-loading progress bar value; null=indeterminate; -1=disable
     const [facetProgress, setFacetProgress] = React.useState(null);
     // True if only facet terms for visualizable files displayed.
     const [visualizableOnly, setVisualizableOnly] = React.useState(false);
     // All partial file objects in the cart datasets. Not affected by currently selected facets.
     const [allFiles, setAllFiles] = React.useState([]);
-    // All raw data files in all datasets in the cart.
-    const [rawdataFiles, setRawdataFiles] = React.useState([]);
+
+    const rawdataFiles = React.useMemo(() => allFiles.filter(files => !files.assembly), [allFiles]);
+    const selectedVisualizableFiles = React.useMemo(() => (
+        getSelectedVisualizableFiles(filterForVisualizableFiles(allFiles), selectedTerms)
+    ), [allFiles, selectedTerms]);
 
     // Retrieve current cart information regardless of its source (memory, object, active).
-    const { cartType, cartName, cartDatasets } = getCartInfo(context, savedCartObj, elements);
+    const { cartType, cartName, cartDatasets, selectedDatasets } = React.useMemo(() => (
+        getCartInfo(context, savedCartObj, elements, selectedType)
+    ), [context, savedCartObj, elements, selectedType]);
 
     // Get all files or just visualizable ones based on the Show Visualizable Data Only switch.
     const getConsideredFiles = () => (visualizableOnly ? filterForVisualizableFiles(allFiles) : allFiles);
@@ -1469,7 +1519,6 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
         setFacets(assembledFacets);
         setSelectedTerms(newSelectedTerms);
         setSelectedFiles(facetSelectedFiles);
-        setSelectedVisualizableFiles(getSelectedVisualizableFiles(filterForVisualizableFiles(allFiles), newSelectedTerms));
     };
 
     // Called when the user clicks the Show Visualizable Only checkbox.
@@ -1482,12 +1531,16 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
         setDisplayedTab(newTab);
     };
 
+    // Called when the user changes the currently selected dataset type.
+    const handleTypeChange = (e) => {
+        setSelectedType(e.target.value);
+    };
+
     // After mount, we can fetch all datasets in the cart and from them extract all their files.
     React.useEffect(() => {
         if (cartDatasets.length > 0) {
             retrieveDatasetsFiles(cartDatasets, setFacetProgress, fetch, session).then(({ datasetFiles, datasets }) => {
                 setAllFiles(datasetFiles);
-                setRawdataFiles(datasetFiles.filter(datasetFile => !datasetFile.assembly));
                 setViewableDatasets(datasets);
             });
         }
@@ -1501,7 +1554,6 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
         const { assembledFacets, facetSelectedFiles } = assembleFacets(newSelectedTerms, consideredFiles);
         setFacets(assembledFacets);
         setSelectedFiles(facetSelectedFiles);
-        setSelectedVisualizableFiles(getSelectedVisualizableFiles(allVisualizableFiles, newSelectedTerms));
         setSelectedTerms(newSelectedTerms);
     }, [visualizableOnly, allFiles]);
 
@@ -1544,6 +1596,8 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
                             elements={cartDatasets}
                             savedCartObj={savedCartObj}
                             selectedTerms={selectedTerms}
+                            selectedType={selectedType}
+                            typeChangeHandler={handleTypeChange}
                             viewableDatasets={viewableDatasets}
                             cartType={cartType}
                             sharedCart={context}
@@ -1559,7 +1613,7 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
                         <div className="cart__display">
                             <FileFacets
                                 facets={facets}
-                                elements={cartDatasets}
+                                elements={selectedDatasets}
                                 selectedTerms={selectedTerms}
                                 termClickHandler={handleTermClick}
                                 selectedFileCount={selectedFiles.length}
@@ -1571,9 +1625,9 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
                             />
                             <TabPanel
                                 tabPanelCss="cart__display-content"
-                                tabs={{ datasets: 'Datasets', browser: 'Genome browser', processeddata: 'Processed data', rawdata: 'Raw data' }}
+                                tabs={{ datasets: 'All datasets', browser: 'Genome browser', processeddata: 'Processed data', rawdata: 'Raw data', }}
                                 tabDisplay={{
-                                    datasets: <CounterTab title="Datasets" count={cartDatasets.length} voice="datasets" />,
+                                    datasets: <CounterTab title={datasetTypes[selectedType]} count={cartDatasets.length} voice="datasets" />,
                                     browser: <CounterTab title="Genome browser" count={selectedVisualizableFiles.length} voice="visualizable tracks" />,
                                     processeddata: <CounterTab title="Processed data" count={selectedFiles.length} voice="processed data files" />,
                                     rawdata: <CounterTab title="Raw data" count={rawdataFiles.length} voice="raw data files" />,
@@ -1587,7 +1641,7 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
                                         updateCurrentPage={updateDisplayedPage}
                                     />
                                     <CartSearchResults
-                                        elements={cartDatasets}
+                                        elements={selectedDatasets}
                                         currentPage={pageNumbers.datasets}
                                         cartControls={cartType !== 'OBJECT'}
                                         loggedIn={loggedIn}
