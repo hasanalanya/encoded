@@ -1093,7 +1093,7 @@ const addFileTermToFacet = (facets, field, file) => {
  */
 const assembleFacets = (selectedTerms, files) => {
     const assembledFacets = [];
-    const facetSelectedFiles = [];
+    const selectedFiles = [];
     const processedFiles = files.filter(file => file.assembly);
     if (processedFiles.length > 0) {
         const selectedFacetKeys = Object.keys(selectedTerms).filter(term => selectedTerms[term].length > 0);
@@ -1121,7 +1121,7 @@ const assembleFacets = (selectedTerms, files) => {
                 Object.keys(selectedTerms).forEach((facetField) => {
                     addFileTermToFacet(assembledFacets, facetField, file);
                 });
-                facetSelectedFiles.push(file);
+                selectedFiles.push(file);
             } else {
                 // The file didn't pass the first test, so run the same test repeatedly but
                 // with one facet removed from the test each time. For each easier test the
@@ -1175,7 +1175,7 @@ const assembleFacets = (selectedTerms, files) => {
         });
     }
 
-    return { assembledFacets: assembledFacets.length > 0 ? assembledFacets : [], facetSelectedFiles };
+    return { facets: assembledFacets.length > 0 ? assembledFacets : [], selectedFiles };
 };
 
 
@@ -1224,8 +1224,8 @@ const resetFacets = (files) => {
 
     // Build the facets based on no selections, then select the first term of any radio-button
     // facets.
-    const { assembledFacets } = assembleFacets(emptySelectedTerms, files);
-    return initRadioFacets(assembledFacets, emptySelectedTerms);
+    const { facets } = assembleFacets(emptySelectedTerms, files);
+    return initRadioFacets(facets, emptySelectedTerms);
 };
 
 
@@ -1433,8 +1433,6 @@ const calcTotalPageCount = (itemCount, maxCount) => Math.floor(itemCount / maxCo
  * of these files, complete file objects get retrieved.
  */
 const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, fetch, session }) => {
-    // Array of currently displayed facets and the terms each contains.
-    const [facets, setFacets] = React.useState([]);
     // Keeps track of currently selected facet terms keyed by facet fields.
     const [selectedTerms, setSelectedTerms] = React.useState(() => generateFacetTermsTemplate());
     // Currently selected dataset type
@@ -1447,8 +1445,6 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
     const [totalPageCount, dispatchTotalPageCounts] = React.useReducer(reducerTabPaneTotalPageCount, { datasets: 0, browser: 0, processeddata: 0, rawdata: 0 });
     // Currently displayed tab; match key of first TabPanelPane initially.
     const [displayedTab, setDisplayedTab] = React.useState('datasets');
-    // All currently selected partial file objects, visualizable or not.
-    const [selectedFiles, setSelectedFiles] = React.useState([]);
     // Facet-loading progress bar value; null=indeterminate; -1=disable
     const [facetProgress, setFacetProgress] = React.useState(null);
     // True if only facet terms for visualizable files displayed.
@@ -1456,6 +1452,10 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
     // All partial file objects in the cart datasets. Not affected by currently selected facets.
     const [allFiles, setAllFiles] = React.useState([]);
 
+    // Get all files or just visualizable ones based on the Show Visualizable Data Only switch.
+    const { facets, selectedFiles } = React.useMemo(() => (
+        assembleFacets(selectedTerms, visualizableOnly ? filterForVisualizableFiles(allFiles) : allFiles)
+    ), [selectedTerms, visualizableOnly, allFiles]);
     const rawdataFiles = React.useMemo(() => allFiles.filter(files => !files.assembly), [allFiles]);
     const selectedVisualizableFiles = React.useMemo(() => (
         getSelectedVisualizableFiles(filterForVisualizableFiles(allFiles), selectedTerms)
@@ -1465,9 +1465,6 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
     const { cartType, cartName, cartDatasets, selectedDatasets } = React.useMemo(() => (
         getCartInfo(context, savedCartObj, elements, selectedType)
     ), [context, savedCartObj, elements, selectedType]);
-
-    // Get all files or just visualizable ones based on the Show Visualizable Data Only switch.
-    const getConsideredFiles = () => (visualizableOnly ? filterForVisualizableFiles(allFiles) : allFiles);
 
     // Called when the user selects a new page of items to view using the pager.
     const updateDisplayedPage = (newDisplayedPage) => {
@@ -1514,11 +1511,7 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
             }
         }
 
-        // Rebuild the facets with the new selected terms.
-        const { assembledFacets, facetSelectedFiles } = assembleFacets(newSelectedTerms, getConsideredFiles());
-        setFacets(assembledFacets);
         setSelectedTerms(newSelectedTerms);
-        setSelectedFiles(facetSelectedFiles);
     };
 
     // Called when the user clicks the Show Visualizable Only checkbox.
@@ -1551,9 +1544,6 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
         const allVisualizableFiles = filterForVisualizableFiles(allFiles);
         const consideredFiles = visualizableOnly ? allVisualizableFiles : allFiles;
         const newSelectedTerms = resetFacets(consideredFiles);
-        const { assembledFacets, facetSelectedFiles } = assembleFacets(newSelectedTerms, consideredFiles);
-        setFacets(assembledFacets);
-        setSelectedFiles(facetSelectedFiles);
         setSelectedTerms(newSelectedTerms);
     }, [visualizableOnly, allFiles]);
 
@@ -1625,7 +1615,7 @@ const CartComponent = ({ context, elements, savedCartObj, loggedIn, inProgress, 
                             />
                             <TabPanel
                                 tabPanelCss="cart__display-content"
-                                tabs={{ datasets: 'All datasets', browser: 'Genome browser', processeddata: 'Processed data', rawdata: 'Raw data', }}
+                                tabs={{ datasets: 'All datasets', browser: 'Genome browser', processeddata: 'Processed data', rawdata: 'Raw data' }}
                                 tabDisplay={{
                                     datasets: <CounterTab title={datasetTypes[selectedType]} count={cartDatasets.length} voice="datasets" />,
                                     browser: <CounterTab title="Genome browser" count={selectedVisualizableFiles.length} voice="visualizable tracks" />,
