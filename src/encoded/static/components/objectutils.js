@@ -481,11 +481,11 @@ RestrictedDownloadButton.defaultProps = {
 
 
 export const DownloadableAccession = (props) => {
-    const { file, clickHandler, loggedIn } = props;
+    const { file, buttonEnabled, clickHandler, loggedIn } = props;
     return (
         <span className="file-table-accession">
             <FileAccessionButton file={file} />
-            {clickHandler ? <FileInfoButton file={file} clickHandler={clickHandler} /> : null}
+            {(clickHandler && buttonEnabled) ? <FileInfoButton file={file} clickHandler={clickHandler} /> : null}
             <RestrictedDownloadButton file={file} loggedIn={loggedIn} />
         </span>
     );
@@ -493,15 +493,16 @@ export const DownloadableAccession = (props) => {
 
 DownloadableAccession.propTypes = {
     file: PropTypes.object.isRequired, // File whose accession to render
+    buttonEnabled: PropTypes.bool, // Check if button is entabled
     clickHandler: PropTypes.func, // Function to call when button is clicked
     loggedIn: PropTypes.bool, // True if current user is logged in
 };
 
 DownloadableAccession.defaultProps = {
+    buttonEnabled: true,
     clickHandler: null,
     loggedIn: false,
 };
-
 
 // Return `true` if the given dataset is viewable by people not logged in, or people logged in
 // but not as admin.
