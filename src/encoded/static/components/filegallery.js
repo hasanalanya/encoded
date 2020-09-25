@@ -345,6 +345,9 @@ FileTable.procTableColumns = {
         display: (item, meta) => {
             const { loggedIn, adminUser } = meta;
             const buttonEnabled = !!(meta.graphedFiles && meta.graphedFiles[item['@id']]);
+            console.log(`button enabled is ${buttonEnabled}`);
+            console.log(meta.graphedFiles);
+            console.log(item['@id']);
             return <DownloadableAccession file={item} buttonEnabled={buttonEnabled} clickHandler={meta.fileClick ? meta.fileClick : null} loggedIn={loggedIn} adminUser={adminUser} />;
         },
         objSorter: (a, b) => fileAccessionSort(a, b),
@@ -400,6 +403,9 @@ FileTable.refTableColumns = {
         display: (item, meta) => {
             const { loggedIn, adminUser } = meta;
             const buttonEnabled = !!(meta.graphedFiles && meta.graphedFiles[item['@id']]);
+            console.log(`button enabled is ${buttonEnabled}`);
+            console.log(meta.graphedFiles);
+            console.log(item['@id']);
             return <DownloadableAccession file={item} buttonEnabled={buttonEnabled} clickHandler={meta.fileClick ? meta.fileClick : null} loggedIn={loggedIn} adminUser={adminUser} />;
         },
         objSorter: (a, b) => fileAccessionSort(a, b),
@@ -728,6 +734,9 @@ class RawSequencingTable extends React.Component {
 
                                 // Determine if accession should be a button or not.
                                 const buttonEnabled = !!(meta.graphedFiles && meta.graphedFiles[file['@id']]);
+                                console.log(`button enabled is ${buttonEnabled}`);
+                                console.log(meta.graphedFiles);
+                                console.log(file['@id']);
 
                                 return (
                                     <tr key={file['@id']} className={rowClasses.join(' ')}>
@@ -874,6 +883,9 @@ class RawFileTable extends React.Component {
 
                                     // Determine if the accession should be a button or not.
                                     const buttonEnabled = !!(meta.graphedFiles && meta.graphedFiles[file['@id']]);
+                                    console.log(`button enabled is ${buttonEnabled}`);
+                                    console.log(meta.graphedFiles);
+                                    console.log(file['@id']);
 
                                     // Prepare for run_type display
                                     return (
@@ -911,6 +923,9 @@ class RawFileTable extends React.Component {
 
                                 // Determine if accession should be a button or not.
                                 const buttonEnabled = !!(meta.graphedFiles && meta.graphedFiles[file['@id']]);
+                                console.log(`button enabled is ${buttonEnabled}`);
+                                console.log(meta.graphedFiles);
+                                console.log(file['@id']);
 
                                 return (
                                     <tr key={file['@id']} className={rowClasses.join(' ')}>
