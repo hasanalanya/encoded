@@ -927,27 +927,31 @@ CartTypeSelector.propTypes = {
  * Display cart tool buttons. If `savedCartObj` is supplied, supply it for the metadata.tsv line
  * in the resulting files.txt.
  */
-const CartTools = ({ elements, selectedTerms, selectedType, typeChangeHandler, savedCartObj, viewableDatasets, fileCounts, cartType, sharedCart, visualizable, inProgress }) => (
-    <div className="cart__tools">
-        <CartTypeSelector selectedType={selectedType} elements={elements} typeChangeHandler={typeChangeHandler} />
-        {elements.length > 0 ?
-            <CartBatchDownload
-                elements={elements}
-                selectedTerms={selectedTerms}
-                datasetFacets={datasetFacets}
-                cartType={cartType}
-                savedCartObj={savedCartObj}
-                sharedCart={sharedCart}
-                fileCounts={fileCounts}
-                visualizable={visualizable}
-            />
-        : null}
-        {cartType === 'OBJECT' ? <CartMergeShared sharedCartObj={sharedCart} viewableDatasets={viewableDatasets} /> : null}
-        {cartType === 'ACTIVE' ? <CartLockTrigger savedCartObj={savedCartObj} inProgress={inProgress} /> : null}
-        {cartType === 'ACTIVE' || cartType === 'MEMORY' ? <CartClearButton /> : null}
-        <CartDatasetSearch elements={elements} />
-    </div>
-);
+const CartTools = ({ elements, selectedTerms, selectedType, typeChangeHandler, savedCartObj, viewableDatasets, fileCounts, cartType, sharedCart, visualizable, inProgress }) => {
+    const disabledMessage = selectedTerms === DEFAULT_DATASET_TYPE ? 'Select a specific dataset type to download files' : '';
+    return (
+        <div className="cart__tools">
+            <CartTypeSelector selectedType={selectedType} elements={elements} typeChangeHandler={typeChangeHandler} />
+            {elements.length > 0 ?
+                <CartBatchDownload
+                    elements={elements}
+                    selectedTerms={selectedTerms}
+                    datasetFacets={datasetFacets}
+                    cartType={cartType}
+                    savedCartObj={savedCartObj}
+                    sharedCart={sharedCart}
+                    fileCounts={fileCounts}
+                    visualizable={visualizable}
+                    disabledMessage={disabledMessage}
+                />
+            : null}
+            {cartType === 'OBJECT' ? <CartMergeShared sharedCartObj={sharedCart} viewableDatasets={viewableDatasets} /> : null}
+            {cartType === 'ACTIVE' ? <CartLockTrigger savedCartObj={savedCartObj} inProgress={inProgress} /> : null}
+            {cartType === 'ACTIVE' || cartType === 'MEMORY' ? <CartClearButton /> : null}
+            <CartDatasetSearch elements={elements} />
+        </div>
+    );
+};
 
 CartTools.propTypes = {
     /** Cart elements */
