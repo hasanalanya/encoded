@@ -1571,8 +1571,7 @@ class VisCache(object):
                 'settings': {
                     'index': {
                         'number_of_shards': 1, 
-                        'max_result_window': 99999,
-                        'total_fields.limit': 5000
+                        'max_result_window': 99999
                     }
                 }
             }

@@ -43,7 +43,6 @@ def app_settings(wsgi_server_host_port, elasticsearch_server, postgresql_server)
 
 
 def _app(app_settings):
-    print("######### _app")
     from encoded import main
     app = main({}, **app_settings)
 
@@ -62,7 +61,6 @@ def _app(app_settings):
 @pytest.yield_fixture(scope='session')
 #@pytest.yield_fixture
 def app(app_settings):
-    print("####### app")
     for app in _app(app_settings):
         yield app
 
@@ -76,7 +74,6 @@ def DBSession(app):
 
 @pytest.fixture(autouse=True)
 def teardown(app, dbapi_conn):
-    print("####### teardown")
     from snovault.elasticsearch import INDEXER
     app.registry[INDEXER].shutdown()
     from snovault.elasticsearch import create_mapping
@@ -110,7 +107,6 @@ def listening_conn(dbapi_conn):
 
 
 def test_indexing_simple(testapp, indexer_testapp):
-    print("####### test_indexing_simple")
     # First post a single item so that subsequent indexing is incremental
     testapp.post_json('/testing-post-put-patch/', {'required': ''})
     res = indexer_testapp.post_json('/index', {'record': True})
@@ -126,7 +122,6 @@ def test_indexing_simple(testapp, indexer_testapp):
 
 
 def test_indexing_workbook(app, testapp, indexer_testapp):
-    print("####### test_indexing_workbook")
     # First post a single item so that subsequent indexing is incremental
     testapp.post_json('/testing-post-put-patch/', {'required': ''})
     res = indexer_testapp.post_json('/index', {'record': True})
